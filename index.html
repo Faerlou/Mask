@@ -60,8 +60,8 @@
       white-space: nowrap;
       max-width: 90%;
     }
-    /* ===== КНОПКА — ИСПРАВЛЕНА ===== */
-    #startBtn {
+    /* ===== ССЫЛКА ВМЕСТО КНОПКИ ===== */
+    #startLink {
       position: absolute;
       bottom: 180px;
       left: 50%;
@@ -69,30 +69,43 @@
       padding: 18px 50px;
       background: #007AFF;
       color: white;
-      border: none;
       border-radius: 30px;
       font-size: 20px;
       font-weight: 700;
-      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
       z-index: 9999;
       box-shadow: 0 4px 30px rgba(0,122,255,0.6);
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
-      /* Обязательно для клика на iOS */
-      pointer-events: auto;
-      display: block;
+      display: inline-block;
       min-width: 200px;
       letter-spacing: 0.5px;
+      /* Важно для iOS */
+      cursor: pointer;
+      transition: transform 0.1s, background 0.1s;
     }
-    #startBtn:active {
+    #startLink:active {
       transform: translateX(-50%) scale(0.95);
       background: #0055CC;
     }
-    /* Стиль для скрытой кнопки */
-    #startBtn.hidden {
+    #startLink.hidden {
       display: none !important;
+    }
+    /* Дополнительная обёртка для центрирования */
+    .link-wrapper {
+      position: absolute;
+      bottom: 180px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .link-wrapper a {
+      pointer-events: auto;
     }
   </style>
 </head>
@@ -101,8 +114,12 @@
 <div id="container">
   <video id="video" autoplay playsinline webkit-playsinline muted></video>
   <canvas id="canvas"></canvas>
-  <div id="status">👆 Нажмите кнопку для запуска</div>
-  <button id="startBtn">▶ Запустить AR</button>
+  <div id="status">👆 Нажмите для запуска</div>
+  
+  <!-- ССЫЛКА ВМЕСТО КНОПКИ -->
+  <div class="link-wrapper">
+    <a href="#" id="startLink">▶ Запустить AR</a>
+  </div>
 </div>
 
 <!-- MediaPipe -->
@@ -118,15 +135,17 @@
   // 1. НАСТРОЙКИ
   // ============================================================
   const MODEL_URL = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
+  // Для своей модели:
+  // const MODEL_URL = 'https://raw.githubusercontent.com/ваш-аккаунт/репозиторий/main/mask.glb';
 
   // ============================================================
   // 2. ЭЛЕМЕНТЫ
   // ============================================================
-  const video = document.getElementById('video');
+const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('status');
-  const startBtn = document.getElementById('startBtn');
+  const startLink = document.getElementById('startLink');
 
   let model = null;
   let faceMesh = null;
@@ -136,7 +155,7 @@
   // ============================================================
   // 3. THREE.JS СЦЕНА
   // ============================================================
-const scene = new THREE.Scene();
+  const scene = new THREE.Scene();
   
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
@@ -169,8 +188,10 @@ const scene = new THREE.Scene();
         model.scale.set(2.5, 2.5, 2.5);
         scene.add(model);
         statusEl.textContent = '✅ Маска загружена! Наведите камеру на лицо';
+        console.log('✅ Модель загружена');
       }, undefined, (err) => {
         statusEl.textContent = '❌ Ошибка загрузки: ' + err.message;
+        console.error('Ошибка:', err);
       });
     };
     document.head.appendChild(script);
@@ -201,13 +222,14 @@ const scene = new THREE.Scene();
       statusEl.textContent = '📷 Камера запущена';
       return true;
     } catch(e) {
-      statusEl.textContent = '❌ Ошибка: ' + e.message;
+      statusEl.textContent = '❌ Ошибка камеры: ' + e.message;
+      console.error('Ошибка камеры:', e);
       return false;
     }
   }
 
   // ============================================================
-  // 6. MEDIAPIPE
+  // 6. MEDIAPIPE FACE MESH
   // ============================================================
   function initFaceMesh() {
     faceMesh = new FaceMesh({
@@ -238,7 +260,7 @@ const scene = new THREE.Scene();
         const cz = (forehead.z + chin.z) / 2;
 
         const headSize = Math.sqrt(
-          Math.pow(forehead.x - chin.x, 2) +
+Math.pow(forehead.x - chin.x, 2) +
           Math.pow(forehead.y - chin.y, 2) +
           Math.pow(forehead.z - chin.z, 2)
         );
@@ -261,7 +283,7 @@ const scene = new THREE.Scene();
           model.rotation.set(
             Math.atan2(noseDir.y, noseDir.z) * 0.5,
             -Math.atan2(noseDir.x, noseDir.z) * 0.5,
-              0
+            0
           );
         }
 
@@ -276,7 +298,7 @@ const scene = new THREE.Scene();
   }
 
   // ============================================================
-  // 7. ЗАПУСК MEDIAPIPE КАМЕРЫ
+  // 7. ЗАПУСК MEDIAPIPE
   // ============================================================
   function startMediaPipe() {
     cameraHelper = new Camera(video, {
@@ -294,17 +316,18 @@ const scene = new THREE.Scene();
   // ============================================================
   // 8. ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
   // ============================================================
-  async function init() {
+  async function init(e) {
+    if (e) e.preventDefault(); // Отменяем переход по ссылке
     if (isRunning) return;
     isRunning = true;
     
-    // Скрываем кнопку
-    startBtn.classList.add('hidden');
+    // Скрываем ссылку
+    startLink.classList.add('hidden');
     statusEl.textContent = '📷 Запуск камеры...';
     
     const cameraOk = await startCamera();
     if (!cameraOk) {
-      startBtn.classList.remove('hidden');
+      startLink.classList.remove('hidden');
       isRunning = false;
       return;
     }
@@ -315,31 +338,17 @@ const scene = new THREE.Scene();
   }
 
   // ============================================================
-  // 9. ОБРАБОТЧИК КНОПКИ (исправлен)
+  // 9. ОБРАБОТЧИК ССЫЛКИ (проще и надёжнее)
   // ============================================================
-  // Убираем все возможные блокировки
-  startBtn.addEventListener('touchstart', function(e) {
-    e.preventDefault(); // Предотвращаем прокрутку
-    e.stopPropagation();
-    init();
+  startLink.addEventListener('click', init);
+  startLink.addEventListener('touchstart', function(e) {
+    // Для iOS иногда нужно touchstart
+    e.preventDefault();
+    init(e);
   }, { passive: false });
 
-  startBtn.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    init();
-  });
-
-  // Дополнительно: обработка на случай, если что-то перехватывает
-  document.addEventListener('touchstart', function(e) {
-    // Если клик по кнопке — игнорируем остальные обработчики
-    if (e.target === startBtn) {
-      e.stopPropagation();
-    }
-  }, { passive: true });
-
   console.log('📱 
- Приложение готово. Нажмите кнопку.');
+ Приложение готово. Нажмите ссылку.');
 </script>
 
 </body>
