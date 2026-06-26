@@ -1,23 +1,114 @@
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Подключаем A-Frame и MindAR -->
-    <script src="https://aframe.io"></script>
-    <script src="https://jsdelivr.net"></script>
-  </head>
-  <body>
-    <!-- Инициализируем face-tracking -->
-    <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-      <a-assets>
-        <!-- Загружаем вашу 3D модель брелка-маски -->
-        <a-asset-item id="maskModel" src="mask.glb"></a-asset-item>
-      </a-assets>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Grooming AR — Demo</title>
+  <meta name="description" content="Demo AR grooming scene. Scan QR to open on Android and tap 'View in your space' to place the model."/>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    :root{ --bg:#f5f6f7; --card:#ffffff; --accent:#0b74de; --muted:#666;}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:#111;}
+    .wrap{max-width:900px;margin:18px auto;padding:18px;}
+    .card{background:var(--card);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.08);overflow:hidden;}
+    header{display:flex;gap:16px;align-items:center;padding:18px;border-bottom:1px solid #eee;}
+    header h1{font-size:18px;margin:0;} header p{margin:0;color:var(--muted);font-size:13px;}
+    .viewer-wrap{position:relative;height:70vh;min-height:420px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, #fff, #fafafa);}
+    model-viewer{width:100%;height:100%;--mv-shadow-intensity:1; background:transparent;}
+    /* Simulated 'brush' — a simple animated element that sweeps across the model to suggest grooming */
+    .brush{
+      position:absolute;
+      width:120px;height:36px;border-radius:22px;background:linear-gradient(90deg,#f6c06b,#f3a33a);
+      box-shadow:0 6px 18px rgba(0,0,0,0.18);top:62%;left:10%;
+      transform-origin:center;display:flex;align-items:center;justify-content:center;color:#2b2b2b;font-weight:700;
+      animation:brush-sweep 2.2s linear infinite;
+      pointer-events:none;
+      opacity:0.95;
+    }
+    @keyframes brush-sweep{
+      0%{transform:translateX(-10%) rotate(-6deg) scale(0.95); left:6%;}
+      35%{transform:translateX(40%) rotate(0deg) scale(1); left:48%;}
+      70%{transform:translateX(90%) rotate(6deg) scale(0.98); left:90%;}
+      100%{transform:translateX(160%) rotate(10deg) scale(0.95); left:160%;}
+    }
 
-      <a-camera active="false" position="0 0 0" look-controls="enabled: false"></a-camera>
+    .controls{display:flex;gap:10px;align-items:center;padding:14px;border-top:1px solid #eee;}
+    .btn{background:var(--accent);color:white;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;}
+    .muted{color:var(--muted);font-size:14px;}
+    footer{padding:12px 18px;font-size:13px;color:var(--muted);}
+    .steps{padding:12px 18px;}
+    code{background:#fafafa;padding:4px 6px;border-radius:6px;font-family:monospace;}
+    @media (max-width:640px){ .brush{display:none} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div>
+          <h1>Grooming AR — демо сцена</h1>
+          <p>Нажмите кнопку AR (появится на поддерживаемом Android) чтобы поместить сцену в своё пространство.</p>
+        </div>
+      </header>
 
-      <!-- Привязываем модель к определенной точке лица (anchorIndex: 168 — это переносица) -->
-      
-        <!-- Корректируем позицию, поворот и масштаб модели под лицо -->
-        <a-gltf-model rotation="0 0 0" position="0 0 0" scale="1 1 1" src="#maskModel"></a-gltf-model>
-      
-    </a-scene>
+      <div class="viewer-wrap">
+        <!-- Public sample model (Duck) from Khronos glTF Sample Models -->
+        <model-viewer id="mv" 
+          src="https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/Duck/glTF-Binary/Duck.glb"
+          alt="Grooming demo pet"
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          auto-rotate
+          exposure="1"
+          shadow-intensity="1"
+          min-field-of-view="20deg"
+          max-field-of-view="80deg"
+          style="width:100%;height:100%;">
+        </model-viewer>
+
+        <div class="brush" id="brush">BRUSH</div>
+      </div>
+
+      <div class="controls">
+        <a class="btn" id="toggleAnim">Pause Brush</a>
+        <div class="muted">Совет: на Android в Chrome появится кнопка <strong>View in your space</strong> — нажмите, чтобы открыть AR.</div>
+      </div>
+
+      <div class="steps">
+        <strong>Что здесь показано:</strong>
+        <ol>
+          <li>3D-модель питомца (в демо — утка из набора примеров). Вы сможете заменить её на модель собаки в формате <code>.glb</code>.</li>
+          <li>Имитация процедуры груминга — движущийся "щётка" поверх модели. В реальной сцене можно добавить анимированную модель и инструменты внутри <code>.glb</code>.</li>
+          <li>AR: на поддерживаемых устройствах появится кнопка для размещения модели в окружении (ARCore/Scene Viewer на Android).</li>
+        </ol>
+
+        <strong>Как заменить модель:</strong>
+        <pre>1) Замените значение src в &lt;model-viewer src="..."&gt; на ссылку на ваш dog.glb (можно загрузить .glb в корень сайта).
+2) При необходимости укажите ios-src="your_model.usdz" для iPhone.</pre>
+      </div>
+
+      <footer>
+        Развернуть: быстро загрузите эту папку (.zip) на <strong>Netlify Drop</strong> (https://app.netlify.com/drop) — сайт выдаст HTTPS ссылку, которую можно превратить в QR-код и напечатать на визитке.
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const brush = document.getElementById('brush');
+    const btn = document.getElementById('toggleAnim');
+    let running = true;
+    btn.addEventListener('click', ()=>{
+      running = !running;
+      brush.style.animationPlayState = running ? 'running' : 'paused';
+      btn.textContent = running ? 'Pause Brush' : 'Resume Brush';
+    });
+
+    // Small helper: if AR is not available, show hint
+    const mv = document.getElementById('mv');
+    mv.addEventListener('ar-status', (ev) => {
+      console.log('AR status', ev.detail.status);
+    });
+  </script>
+</body>
+</html>
