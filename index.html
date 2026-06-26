@@ -10,6 +10,9 @@
       overflow: hidden; 
       background: #000;
       touch-action: none;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
     }
     #container {
       width: 100vw;
@@ -25,7 +28,6 @@
       height: 100%;
       object-fit: cover;
       transform: scaleX(-1);
-      /* Критично для iOS */
       -webkit-transform: scaleX(-1);
     }
     canvas {
@@ -40,43 +42,57 @@
     }
     #status {
       position: absolute;
-      bottom: 30px;
-      left: 0;
-      right: 0;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
       text-align: center;
       color: white;
       font-family: -apple-system, Arial, sans-serif;
       text-shadow: 0 0 20px rgba(0,0,0,0.9);
       font-size: 16px;
-      padding: 12px;
-      background: rgba(0,0,0,0.5);
+      padding: 12px 24px;
+      background: rgba(0,0,0,0.6);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border-radius: 12px;
-      margin: 0 20px;
       pointer-events: none;
       z-index: 10;
+      white-space: nowrap;
+      max-width: 90%;
     }
+    /* ===== КНОПКА — ИСПРАВЛЕНА ===== */
     #startBtn {
       position: absolute;
-      bottom: 120px;
+      bottom: 180px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 16px 40px;
+      padding: 18px 50px;
       background: #007AFF;
       color: white;
       border: none;
       border-radius: 30px;
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 20px;
+      font-weight: 700;
       cursor: pointer;
-      z-index: 20;
-      box-shadow: 0 4px 20px rgba(0,122,255,0.4);
+      z-index: 9999;
+      box-shadow: 0 4px 30px rgba(0,122,255,0.6);
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      /* Обязательно для клика на iOS */
+      pointer-events: auto;
+      display: block;
+      min-width: 200px;
+      letter-spacing: 0.5px;
     }
     #startBtn:active {
       transform: translateX(-50%) scale(0.95);
+      background: #0055CC;
+    }
+    /* Стиль для скрытой кнопки */
+    #startBtn.hidden {
+      display: none !important;
     }
   </style>
 </head>
@@ -86,7 +102,7 @@
   <video id="video" autoplay playsinline webkit-playsinline muted></video>
   <canvas id="canvas"></canvas>
   <div id="status">👆 Нажмите кнопку для запуска</div>
-  <button id="startBtn">Запустить AR</button>
+  <button id="startBtn">▶ Запустить AR</button>
 </div>
 
 <!-- MediaPipe -->
@@ -99,11 +115,9 @@
 
 <script>
   // ============================================================
-  // 1. НАСТРОЙКИ — вставьте ссылку на вашу GLB-модель
+  // 1. НАСТРОЙКИ
   // ============================================================
-  const MODEL_URL = 'https://raw.githubusercontent.com/faerlou.github.io/Mask/main/mask.glb';
-  // Для своей модели: загрузите на GitHub и укажите RAW-ссылку
-  // Пример: https://raw.githubusercontent.com/ваш-аккаунт/репозиторий/main/mask.glb
+  const MODEL_URL = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
 
   // ============================================================
   // 2. ЭЛЕМЕНТЫ
@@ -122,9 +136,8 @@
   // ============================================================
   // 3. THREE.JS СЦЕНА
   // ============================================================
-  const scene = new THREE.Scene();
+const scene = new THREE.Scene();
   
-  // Освещение
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -147,7 +160,6 @@
   function loadModel() {
     statusEl.textContent = '⏳ Загрузка модели...';
     
-    // Динамически подключаем GLTFLoader
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
     script.onload = () => {
@@ -157,17 +169,15 @@
         model.scale.set(2.5, 2.5, 2.5);
         scene.add(model);
         statusEl.textContent = '✅ Маска загружена! Наведите камеру на лицо';
-        console.log('✅ Модель загружена');
       }, undefined, (err) => {
-        statusEl.textContent = '❌ Ошибка загрузки модели: ' + err.message;
-        console.error('Ошибка:', err);
+        statusEl.textContent = '❌ Ошибка загрузки: ' + err.message;
       });
     };
     document.head.appendChild(script);
   }
 
   // ============================================================
-  // 5. ЗАПУСК КАМЕРЫ (фикс для iOS)
+  // 5. ЗАПУСК КАМЕРЫ
   // ============================================================
   async function startCamera() {
     try {
@@ -180,28 +190,24 @@
       });
       
       video.srcObject = stream;
-      
-      // КРИТИЧНО для iOS: явный вызов play()
       await video.play();
       
-      // Настройка canvas под размер видео
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       renderer.setSize(canvas.width, canvas.height);
       camera3D.aspect = canvas.width / canvas.height;
       camera3D.updateProjectionMatrix();
       
-      statusEl.textContent = '📷 Камера запущена, инициализация распознавания...';
+      statusEl.textContent = '📷 Камера запущена';
       return true;
     } catch(e) {
-      statusEl.textContent = '❌ Ошибка камеры: ' + e.message;
-      console.error('Ошибка камеры:', e);
+      statusEl.textContent = '❌ Ошибка: ' + e.message;
       return false;
     }
   }
 
   // ============================================================
-  // 6. MEDIAPIPE FACE MESH
+  // 6. MEDIAPIPE
   // ============================================================
   function initFaceMesh() {
     faceMesh = new FaceMesh({
@@ -216,7 +222,6 @@
     });
 
     faceMesh.onResults((results) => {
-      // Очищаем canvas и рисуем видео
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -224,25 +229,20 @@
 
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         const landmarks = results.multiFaceLandmarks[0];
-        
-        // Ключевые точки: нос (1), подбородок (152), лоб (10)
         const nose = landmarks[1];
         const chin = landmarks[152];
         const forehead = landmarks[10];
 
-        // Центр головы
         const cx = (forehead.x + chin.x) / 2;
         const cy = (forehead.y + chin.y) / 2;
         const cz = (forehead.z + chin.z) / 2;
 
-        // Размер головы
         const headSize = Math.sqrt(
           Math.pow(forehead.x - chin.x, 2) +
           Math.pow(forehead.y - chin.y, 2) +
           Math.pow(forehead.z - chin.z, 2)
         );
 
-        // Направление носа для поворота
         const noseDir = {
           x: nose.x - cx,
           y: nose.y - cy,
@@ -250,24 +250,18 @@
         };
 
         if (model) {
-          // Позиция в 3D пространстве
           const scale = 2.0;
-19:53
-model.position.set(
+          model.position.set(
             (cx - 0.5) * 2 * scale,
             -(cy - 0.5) * 2 * scale,
             cz * 5 - 0.5
           );
-          
-          // Масштаб
           const s = headSize * 4.5;
           model.scale.set(s, s, s);
-
-          // Поворот
           model.rotation.set(
             Math.atan2(noseDir.y, noseDir.z) * 0.5,
             -Math.atan2(noseDir.x, noseDir.z) * 0.5,
-            0
+              0
           );
         }
 
@@ -298,18 +292,19 @@ model.position.set(
   }
 
   // ============================================================
-  // 8. ГЛАВНАЯ ФУНКЦИЯ (запуск по кнопке)
+  // 8. ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
   // ============================================================
   async function init() {
     if (isRunning) return;
     isRunning = true;
-    startBtn.style.display = 'none';
-
+    
+    // Скрываем кнопку
+    startBtn.classList.add('hidden');
     statusEl.textContent = '📷 Запуск камеры...';
     
     const cameraOk = await startCamera();
     if (!cameraOk) {
-      startBtn.style.display = 'block';
+      startBtn.classList.remove('hidden');
       isRunning = false;
       return;
     }
@@ -320,15 +315,31 @@ model.position.set(
   }
 
   // ============================================================
-  // 9. КНОПКА ЗАПУСКА (обязательное взаимодействие для iOS)
+  // 9. ОБРАБОТЧИК КНОПКИ (исправлен)
   // ============================================================
-  startBtn.addEventListener('click', init);
-  
-  // Для десктопа можно запустить автоматически, но для iOS — только по клику
-  // Поэтому просто ждём нажатия кнопки
+  // Убираем все возможные блокировки
+  startBtn.addEventListener('touchstart', function(e) {
+    e.preventDefault(); // Предотвращаем прокрутку
+    e.stopPropagation();
+    init();
+  }, { passive: false });
+
+  startBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    init();
+  });
+
+  // Дополнительно: обработка на случай, если что-то перехватывает
+  document.addEventListener('touchstart', function(e) {
+    // Если клик по кнопке — игнорируем остальные обработчики
+    if (e.target === startBtn) {
+      e.stopPropagation();
+    }
+  }, { passive: true });
 
   console.log('📱 
- Приложение готово. Нажмите кнопку для запуска.');
+ Приложение готово. Нажмите кнопку.');
 </script>
 
 </body>
