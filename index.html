@@ -3,52 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AR Маска на лицо</title>
+  <title>AR Маска</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      overflow: hidden; 
-      background: #000;
-      touch-action: none;
-      height: 100vh;
-      width: 100vw;
-      position: fixed;
-    }
-    #container {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-      background: #000;
-    }
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      -webkit-transform: scaleX(-1);
-    }
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      transform: scaleX(-1);
-      -webkit-transform: scaleX(-1);
-      pointer-events: none;
-    }
+    body { overflow: hidden; background: #000; height: 100vh; position: fixed; width: 100vw; }
+    #container { width: 100vw; height: 100vh; position: relative; background: #000; }
+    video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); -webkit-transform: scaleX(-1); }
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); -webkit-transform: scaleX(-1); pointer-events: none; }
     #status {
       position: absolute;
       bottom: 100px;
       left: 50%;
       transform: translateX(-50%);
-      text-align: center;
       color: white;
       font-family: -apple-system, Arial, sans-serif;
-      text-shadow: 0 0 20px rgba(0,0,0,0.9);
       font-size: 16px;
       padding: 12px 24px;
       background: rgba(0,0,0,0.6);
@@ -57,44 +25,9 @@
       border-radius: 12px;
       pointer-events: none;
       z-index: 10;
-      white-space: nowrap;
       max-width: 90%;
-    }
-    /* ===== ССЫЛКА ВМЕСТО КНОПКИ ===== */
-    #startLink {
-      position: absolute;
-      bottom: 180px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 18px 50px;
-      background: #007AFF;
-      color: white;
-      border-radius: 30px;
-      font-size: 20px;
-      font-weight: 700;
-      text-decoration: none;
       text-align: center;
-      z-index: 9999;
-      box-shadow: 0 4px 30px rgba(0,122,255,0.6);
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-      user-select: none;
-      -webkit-user-select: none;
-      display: inline-block;
-      min-width: 200px;
-      letter-spacing: 0.5px;
-      /* Важно для iOS */
-      cursor: pointer;
-      transition: transform 0.1s, background 0.1s;
     }
-    #startLink:active {
-      transform: translateX(-50%) scale(0.95);
-      background: #0055CC;
-    }
-    #startLink.hidden {
-      display: none !important;
-    }
-    /* Дополнительная обёртка для центрирования */
     .link-wrapper {
       position: absolute;
       bottom: 180px;
@@ -106,7 +39,23 @@
     }
     .link-wrapper a {
       pointer-events: auto;
+      display: inline-block;
+      padding: 18px 50px;
+      background: #007AFF;
+      color: white;
+      border-radius: 30px;
+      font-size: 20px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 30px rgba(0,122,255,0.6);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      min-width: 200px;
+      transition: transform 0.1s, background 0.1s;
     }
+    .link-wrapper a:active { transform: scale(0.95); background: #0055CC; }
+    .link-wrapper a.hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -115,8 +64,6 @@
   <video id="video" autoplay playsinline webkit-playsinline muted></video>
   <canvas id="canvas"></canvas>
   <div id="status">👆 Нажмите для запуска</div>
-  
-  <!-- ССЫЛКА ВМЕСТО КНОПКИ -->
   <div class="link-wrapper">
     <a href="#" id="startLink">▶ Запустить AR</a>
   </div>
@@ -132,16 +79,11 @@
 
 <script>
   // ============================================================
-  // 1. НАСТРОЙКИ
+  // ✅ ИСПРАВЛЕННАЯ ССЫЛКА НА МОДЕЛЬ (raw.githubusercontent.com)
   // ============================================================
-  const MODEL_URL = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
-  // Для своей модели:
-  // const MODEL_URL = 'https://raw.githubusercontent.com/ваш-аккаунт/репозиторий/main/mask.glb';
+  const MODEL_URL = 'https://raw.githubusercontent.com/Faerlou/Mask/main/mask.glb';
 
-  // ============================================================
-  // 2. ЭЛЕМЕНТЫ
-  // ============================================================
-const video = document.getElementById('video');
+  const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('status');
@@ -152,11 +94,8 @@ const video = document.getElementById('video');
   let cameraHelper = null;
   let isRunning = false;
 
-  // ============================================================
-  // 3. THREE.JS СЦЕНА
-  // ============================================================
+  // THREE.JS СЦЕНА
   const scene = new THREE.Scene();
-  
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -167,18 +106,11 @@ const video = document.getElementById('video');
   scene.add(backLight);
 
   const camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  const renderer = new THREE.WebGLRenderer({ 
-    canvas: canvas, 
-    alpha: true, 
-    antialias: true 
-  });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 
-  // ============================================================
-  // 4. ЗАГРУЗКА МОДЕЛИ
-  // ============================================================
+  // ЗАГРУЗКА МОДЕЛИ
   function loadModel() {
-    statusEl.textContent = '⏳ Загрузка модели...';
-    
+statusEl.textContent = '⏳ Загрузка модели (может занять время)...';
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
     script.onload = () => {
@@ -188,61 +120,50 @@ const video = document.getElementById('video');
         model.scale.set(2.5, 2.5, 2.5);
         scene.add(model);
         statusEl.textContent = '✅ Маска загружена! Наведите камеру на лицо';
-        console.log('✅ Модель загружена');
-      }, undefined, (err) => {
-        statusEl.textContent = '❌ Ошибка загрузки: ' + err.message;
+      }, (progress) => {
+        // Прогресс загрузки
+        const pct = Math.round((progress.loaded / progress.total) * 100);
+        statusEl.textContent = `⏳ Загрузка: ${pct}%`;
+      }, (err) => {
+        statusEl.textContent = '❌ Ошибка загрузки модели: ' + err.message;
         console.error('Ошибка:', err);
       });
     };
     document.head.appendChild(script);
   }
 
-  // ============================================================
-  // 5. ЗАПУСК КАМЕРЫ
-  // ============================================================
+  // КАМЕРА
   async function startCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       });
-      
       video.srcObject = stream;
       await video.play();
-      
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       renderer.setSize(canvas.width, canvas.height);
       camera3D.aspect = canvas.width / canvas.height;
       camera3D.updateProjectionMatrix();
-      
       statusEl.textContent = '📷 Камера запущена';
       return true;
     } catch(e) {
       statusEl.textContent = '❌ Ошибка камеры: ' + e.message;
-      console.error('Ошибка камеры:', e);
       return false;
     }
   }
 
-  // ============================================================
-  // 6. MEDIAPIPE FACE MESH
-  // ============================================================
+  // FACE MESH
   function initFaceMesh() {
     faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
-
     faceMesh.setOptions({
       maxNumFaces: 1,
       refineLandmarks: true,
       minDetectionConfidence: 0.7,
       minTrackingConfidence: 0.5
     });
-
     faceMesh.onResults((results) => {
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -250,26 +171,17 @@ const video = document.getElementById('video');
       ctx.restore();
 
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        const landmarks = results.multiFaceLandmarks[0];
-        const nose = landmarks[1];
-        const chin = landmarks[152];
-        const forehead = landmarks[10];
-
+        const lm = results.multiFaceLandmarks[0];
+        const nose = lm[1], chin = lm[152], forehead = lm[10];
         const cx = (forehead.x + chin.x) / 2;
         const cy = (forehead.y + chin.y) / 2;
         const cz = (forehead.z + chin.z) / 2;
-
         const headSize = Math.sqrt(
-Math.pow(forehead.x - chin.x, 2) +
+          Math.pow(forehead.x - chin.x, 2) +
           Math.pow(forehead.y - chin.y, 2) +
           Math.pow(forehead.z - chin.z, 2)
         );
-
-        const noseDir = {
-          x: nose.x - cx,
-          y: nose.y - cy,
-          z: nose.z - cz
-        };
+        const noseDir = { x: nose.x - cx, y: nose.y - cy, z: nose.z - cz };
 
         if (model) {
           const scale = 2.0;
@@ -286,70 +198,49 @@ Math.pow(forehead.x - chin.x, 2) +
             0
           );
         }
-
         statusEl.textContent = '😊 
  Лицо найдено!';
       } else {
         statusEl.textContent = '😐 Лицо не обнаружено';
       }
-
       renderer.render(scene, camera3D);
     });
   }
 
-  // ============================================================
-  // 7. ЗАПУСК MEDIAPIPE
-  // ============================================================
   function startMediaPipe() {
     cameraHelper = new Camera(video, {
-      onFrame: async () => {
-        if (faceMesh) {
-          await faceMesh.send({ image: video });
-        }
-      },
+      onFrame: async () => { if (faceMesh) await faceMesh.send({ image: video }); },
       width: 640,
       height: 480
     });
     cameraHelper.start();
   }
 
-  // ============================================================
-  // 8. ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
-  // ============================================================
+  // ГЛАВНЫЙ ЗАПУСК
   async function init(e) {
-    if (e) e.preventDefault(); // Отменяем переход по ссылке
+    if (e) e.preventDefault();
     if (isRunning) return;
     isRunning = true;
-    
-    // Скрываем ссылку
     startLink.classList.add('hidden');
     statusEl.textContent = '📷 Запуск камеры...';
-    
     const cameraOk = await startCamera();
     if (!cameraOk) {
       startLink.classList.remove('hidden');
       isRunning = false;
       return;
     }
-
     initFaceMesh();
     loadModel();
     startMediaPipe();
   }
-
-  // ============================================================
-  // 9. ОБРАБОТЧИК ССЫЛКИ (проще и надёжнее)
-  // ============================================================
-  startLink.addEventListener('click', init);
+startLink.addEventListener('click', init);
   startLink.addEventListener('touchstart', function(e) {
-    // Для iOS иногда нужно touchstart
     e.preventDefault();
     init(e);
   }, { passive: false });
 
   console.log('📱 
- Приложение готово. Нажмите ссылку.');
+ Готово. Жмите ссылку.');
 </script>
-
 </body>
 </html>
