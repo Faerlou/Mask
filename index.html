@@ -1,246 +1,436 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AR Маска</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #000; height: 100vh; position: fixed; width: 100vw; }
-    #container { width: 100vw; height: 100vh; position: relative; background: #000; }
-    video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); -webkit-transform: scaleX(-1); }
-    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); -webkit-transform: scaleX(-1); pointer-events: none; }
-    #status {
-      position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      font-family: -apple-system, Arial, sans-serif;
-      font-size: 16px;
-      padding: 12px 24px;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-radius: 12px;
-      pointer-events: none;
-      z-index: 10;
-      max-width: 90%;
-      text-align: center;
-    }
-    .link-wrapper {
-      position: absolute;
-      bottom: 180px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      z-index: 9999;
-      pointer-events: none;
-    }
-    .link-wrapper a {
-      pointer-events: auto;
-      display: inline-block;
-      padding: 18px 50px;
-      background: #007AFF;
-      color: white;
-      border-radius: 30px;
-      font-size: 20px;
-      font-weight: 700;
-      text-decoration: none;
-      box-shadow: 0 4px 30px rgba(0,122,255,0.6);
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-      user-select: none;
-      min-width: 200px;
-      transition: transform 0.1s, background 0.1s;
-    }
-    .link-wrapper a:active { transform: scale(0.95); background: #0055CC; }
-    .link-wrapper a.hidden { display: none !important; }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+
+    <title>AR Mask</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #container {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        #video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            z-index: 1;
+        }
+
+        #threeCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transform: scaleX(-1);
+            z-index: 2;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            background: rgba(0,0,0,.6);
+            padding: 12px 20px;
+            border-radius: 12px;
+            z-index: 10;
+            font-family: -apple-system,sans-serif;
+        }
+
+        #startBtn {
+            position: absolute;
+            bottom: 170px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            border: none;
+            border-radius: 30px;
+            padding: 18px 40px;
+            background: #007AFF;
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
-<div id="container">
-  <video id="video" autoplay playsinline webkit-playsinline muted></video>
-  <canvas id="canvas"></canvas>
-  <div id="status">👆 Нажмите для запуска</div>
-  <div class="link-wrapper">
-    <a href="#" id="startLink">▶ Запустить AR</a>
-  </div>
-</div>
+    <div id="container">
 
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+        <video id="video"
+               autoplay
+               muted
+               playsinline
+               webkit-playsinline>
+        </video>
 
-<!-- Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <canvas id="threeCanvas"></canvas>
 
-<script>
-  // ============================================================
-  // ✅ ИСПРАВЛЕННАЯ ССЫЛКА НА МОДЕЛЬ (raw.githubusercontent.com)
-  // ============================================================
-  const MODEL_URL = 'https://raw.githubusercontent.com/Faerlou/Mask/main/mask.glb';
+        <button id="startBtn">
+            ▶ Запустить AR
+        </button>
 
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const statusEl = document.getElementById('status');
-  const startLink = document.getElementById('startLink');
+        <div id="status">
+            Нажмите кнопку запуска
+        </div>
 
-  let model = null;
-  let faceMesh = null;
-  let cameraHelper = null;
-  let isRunning = false;
+    </div>
 
-  // THREE.JS СЦЕНА
-  const scene = new THREE.Scene();
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-  dirLight.position.set(0, 1, 2);
-  scene.add(dirLight);
-  const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
-  backLight.position.set(0, 0, -1);
-  scene.add(backLight);
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 
-  const camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-  // ЗАГРУЗКА МОДЕЛИ
-  function loadModel() {
-statusEl.textContent = '⏳ Загрузка модели (может занять время)...';
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    script.onload = () => {
-      const loader = new THREE.GLTFLoader();
-      loader.load(MODEL_URL, (gltf) => {
-        model = gltf.scene;
-        model.scale.set(2.5, 2.5, 2.5);
-        scene.add(model);
-        statusEl.textContent = '✅ Маска загружена! Наведите камеру на лицо';
-      }, (progress) => {
-        // Прогресс загрузки
-        const pct = Math.round((progress.loaded / progress.total) * 100);
-        statusEl.textContent = `⏳ Загрузка: ${pct}%`;
-      }, (err) => {
-        statusEl.textContent = '❌ Ошибка загрузки модели: ' + err.message;
-        console.error('Ошибка:', err);
-      });
-    };
-    document.head.appendChild(script);
-  }
+    <!-- GLTFLoader -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
-  // КАМЕРА
-  async function startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-      });
-      video.srcObject = stream;
-      await video.play();
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      renderer.setSize(canvas.width, canvas.height);
-      camera3D.aspect = canvas.width / canvas.height;
-      camera3D.updateProjectionMatrix();
-      statusEl.textContent = '📷 Камера запущена';
-      return true;
-    } catch(e) {
-      statusEl.textContent = '❌ Ошибка камеры: ' + e.message;
-      return false;
-    }
-  }
+    <script>
 
-  // FACE MESH
-  function initFaceMesh() {
-    faceMesh = new FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5
-    });
-    faceMesh.onResults((results) => {
-      ctx.save();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      ctx.restore();
+        const MODEL_URL = "./mask.glb";
 
-      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        const lm = results.multiFaceLandmarks[0];
-        const nose = lm[1], chin = lm[152], forehead = lm[10];
-        const cx = (forehead.x + chin.x) / 2;
-        const cy = (forehead.y + chin.y) / 2;
-        const cz = (forehead.z + chin.z) / 2;
-        const headSize = Math.sqrt(
-          Math.pow(forehead.x - chin.x, 2) +
-          Math.pow(forehead.y - chin.y, 2) +
-          Math.pow(forehead.z - chin.z, 2)
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("threeCanvas");
+        const statusEl = document.getElementById("status");
+        const startBtn = document.getElementById("startBtn");
+
+        let model = null;
+        let faceMesh = null;
+        let running = false;
+
+        // ======================
+        // THREE
+        // ======================
+
+        const scene = new THREE.Scene();
+
+        const camera3D = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100
         );
-        const noseDir = { x: nose.x - cx, y: nose.y - cy, z: nose.z - cz };
 
-        if (model) {
-          const scale = 2.0;
-          model.position.set(
-            (cx - 0.5) * 2 * scale,
-            -(cy - 0.5) * 2 * scale,
-            cz * 5 - 0.5
-          );
-          const s = headSize * 4.5;
-          model.scale.set(s, s, s);
-          model.rotation.set(
-            Math.atan2(noseDir.y, noseDir.z) * 0.5,
-            -Math.atan2(noseDir.x, noseDir.z) * 0.5,
-            0
-          );
+        camera3D.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas,
+            alpha: true,
+            antialias: true
+        });
+
+        renderer.setPixelRatio(
+            Math.min(window.devicePixelRatio, 2)
+        );
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
+        const ambient = new THREE.AmbientLight(
+            0xffffff,
+            1.2
+        );
+        scene.add(ambient);
+
+        const light1 = new THREE.DirectionalLight(
+            0xffffff,
+            1
+        );
+        light1.position.set(0, 1, 2);
+        scene.add(light1);
+
+        // ======================
+        // MODEL
+        // ======================
+
+        function loadModel() {
+
+            return new Promise((resolve, reject) => {
+
+                const loader = new THREE.GLTFLoader();
+
+                loader.load(
+
+                    MODEL_URL,
+
+                    (gltf) => {
+
+                        model = gltf.scene;
+
+                        model.scale.set(
+                            1,
+                            1,
+                            1
+                        );
+
+                        scene.add(model);
+
+                        resolve();
+                    },
+
+                    undefined,
+
+                    (err) => {
+                        reject(err);
+                    }
+
+                );
+
+            });
+
         }
-        statusEl.textContent = '😊 
- Лицо найдено!';
-      } else {
-        statusEl.textContent = '😐 Лицо не обнаружено';
-      }
-      renderer.render(scene, camera3D);
-    });
-  }
 
-  function startMediaPipe() {
-    cameraHelper = new Camera(video, {
-      onFrame: async () => { if (faceMesh) await faceMesh.send({ image: video }); },
-      width: 640,
-      height: 480
-    });
-    cameraHelper.start();
-  }
+        // ======================
+        // CAMERA
+        // ======================
 
-  // ГЛАВНЫЙ ЗАПУСК
-  async function init(e) {
-    if (e) e.preventDefault();
-    if (isRunning) return;
-    isRunning = true;
-    startLink.classList.add('hidden');
-    statusEl.textContent = '📷 Запуск камеры...';
-    const cameraOk = await startCamera();
-    if (!cameraOk) {
-      startLink.classList.remove('hidden');
-      isRunning = false;
-      return;
-    }
-    initFaceMesh();
-    loadModel();
-    startMediaPipe();
-  }
-startLink.addEventListener('click', init);
-  startLink.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    init(e);
-  }, { passive: false });
+        async function startCamera() {
 
-  console.log('📱 
- Готово. Жмите ссылку.');
-</script>
+            const stream =
+                await navigator.mediaDevices.getUserMedia({
+
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+
+                    audio: false
+
+                });
+
+            video.srcObject = stream;
+
+            await video.play();
+
+        }
+
+        // ======================
+        // FACEMESH
+        // ======================
+
+        function createFaceMesh() {
+
+            faceMesh = new FaceMesh({
+
+                locateFile: (file) =>
+                    `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+
+            });
+
+            faceMesh.setOptions({
+
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.5
+
+            });
+
+            faceMesh.onResults(onResults);
+
+        }
+
+        // ======================
+        // FACE TRACKING
+        // ======================
+
+        function onResults(results) {
+
+            if (
+                !results.multiFaceLandmarks ||
+                !results.multiFaceLandmarks.length
+            ) {
+                statusEl.textContent = "Лицо не найдено";
+                return;
+            }
+
+            const lm = results.multiFaceLandmarks[0];
+
+            const nose = lm[1];
+            const forehead = lm[10];
+            const chin = lm[152];
+
+            if (!model) return;
+
+            const cx = (forehead.x + chin.x) * 0.5;
+            const cy = (forehead.y + chin.y) * 0.5;
+
+            const size = Math.sqrt(
+
+                Math.pow(forehead.x - chin.x, 2) +
+                Math.pow(forehead.y - chin.y, 2)
+
+            );
+
+            model.visible = true;
+
+            model.position.x = (cx - 0.5) * 6;
+            model.position.y = -(cy - 0.5) * 6;
+            model.position.z = -2;
+
+            const scale = size * 10;
+
+            model.scale.set(
+                scale,
+                scale,
+                scale
+            );
+
+            const rotY =
+                -(nose.x - cx) * 5;
+
+            const rotX =
+                (nose.y - cy) * 3;
+
+            model.rotation.set(
+                rotX,
+                rotY,
+                0
+            );
+
+            statusEl.textContent = "Лицо найдено";
+
+        }
+
+        // ======================
+        // LOOP
+        // ======================
+
+        async function detectLoop() {
+
+            if (!running) return;
+
+            await faceMesh.send({
+                image: video
+            });
+
+            requestAnimationFrame(
+                detectLoop
+            );
+
+        }
+
+        function renderLoop() {
+
+            requestAnimationFrame(
+                renderLoop
+            );
+
+            renderer.render(
+                scene,
+                camera3D
+            );
+
+        }
+
+        // ======================
+        // START
+        // ======================
+
+        async function startAR() {
+
+            if (running) return;
+
+            try {
+
+                running = true;
+
+                startBtn.classList.add(
+                    "hidden"
+                );
+
+                statusEl.textContent =
+                    "Запуск камеры...";
+
+                await startCamera();
+
+                statusEl.textContent =
+                    "Загрузка модели...";
+
+                await loadModel();
+
+                statusEl.textContent =
+                    "Запуск FaceMesh...";
+
+                createFaceMesh();
+
+                detectLoop();
+
+                renderLoop();
+
+                statusEl.textContent =
+                    "Наведите камеру на лицо";
+
+            }
+            catch (err) {
+
+                console.error(err);
+
+                statusEl.textContent =
+                    "Ошибка: " + err.message;
+
+                startBtn.classList.remove(
+                    "hidden"
+                );
+
+                running = false;
+
+            }
+
+        }
+
+        startBtn.addEventListener(
+            "click",
+            startAR
+        );
+
+        // iPhone resize
+
+        window.addEventListener(
+            "resize",
+            () => {
+
+                camera3D.aspect =
+                    window.innerWidth /
+                    window.innerHeight;
+
+                camera3D.updateProjectionMatrix();
+
+                renderer.setSize(
+                    window.innerWidth,
+                    window.innerHeight
+                );
+
+            }
+        );
+
+    </script>
+
 </body>
 </html>
